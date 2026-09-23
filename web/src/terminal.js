@@ -109,7 +109,7 @@ async function flush() {
   sending = false;
 }
 
-/* ---------- termSessions ---------- */
+/* ---------- sessions ---------- */
 
 function makeView(info) {
   const host = document.createElement('div');
@@ -250,6 +250,7 @@ async function openSession(kind) {
     // The stream announces the session; select it as soon as its view exists.
     const until = Date.now() + 3000;
     while (!termSessions.has(res.id) && Date.now() < until) await new Promise(r => setTimeout(r, 20));
+    if (!termSessions.has(res.id)) throw new Error('session started, but the stream has not shown it; reload to attach');
     selectSession(res.id);
     if (kind === 'harness') lastHarness = res.id;
   } catch (e) {
@@ -263,8 +264,10 @@ async function closeSession(id) {
 
 /* ---------- stream ---------- */
 
+// Connects regardless of visibility: it is called for something the user just
+// did. Only the visibilitychange handler below pauses the stream.
 function connectStream() {
-  if (stream || !usable() || document.visibilityState === 'hidden') return;
+  if (stream || !usable()) return;
   const u = new URL('api/term/stream', document.baseURI);
   if (cursors) u.searchParams.set('since', cursors);
   stream = new EventSource(u);
@@ -314,6 +317,7 @@ function showPane(show) {
 }
 
 export async function toggleTerminal(force) {
+  if (!S.meta) return; // still booting: whether the terminal exists is not known yet
   const show = force ?? pane.hidden;
   if (show && !termMeta().available) {
     showToast('!', termMeta().reason || 'The terminal is turned off');
@@ -408,8 +412,8 @@ export function initTerminal() {
     for (const s of termSessions.values()) s.term.options.theme = theme;
   }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
-  // Like the git stream: nothing streams to a hidden page. Output keeps
-  // collecting on the server and is caught up on return.
+  // Like the git stream: a page that becomes hidden stops streaming. Output
+  // keeps collecting on the server and is caught up on return.
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') disconnectStream();
     else if (xtermLoad) connectStream();
