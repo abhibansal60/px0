@@ -274,6 +274,14 @@ const BUILTIN_SCHEMA = [
     default: false
   },
   {
+    key: "terminal.enabled",
+    title: "Integrated Terminal",
+    description: "Offers a terminal pane (Ctrl+`) for shells and interactive harness sessions in the workspace. Only available when px0 is bound to this machine (the default -host). Takes effect on the next start; -no-terminal turns it off for one run.",
+    category: "Terminal",
+    type: "boolean",
+    default: true
+  },
+  {
     key: "server.basePath",
     title: "Base Path",
     description: "Base URL path prefix for the px0 server and web interface (e.g. /rev-123/).",

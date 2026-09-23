@@ -82,6 +82,7 @@ px0 -base-path /rev-123/ -host 0.0.0.0 -port 7777 ~/workspace
 | `-no-git` | `false` | Disable Git status checks and diff viewing |
 | `-agent H` | none | Pin active coding agent harness for session |
 | `-no-agent` | `false` | Disable coding agent editing features entirely |
+| `-no-terminal` | `false` | Disable the integrated terminal. It is also off whenever `-host` is not a loopback address. |
 | `-verbose` | `false` | Log every HTTP request, searches, symbols, and agent prompts to terminal |
 | `-quiet` | `false` | Suppress CLI narration on stdout |
 | `-update` | `false` | Check for updates and install latest release |

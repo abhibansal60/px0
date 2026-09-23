@@ -21,6 +21,7 @@ See full performance benchmarks and comparisons at [px0.ai/#bench](https://px0.a
 
 - GitHub PR reviews & Git panel: Review pull requests directly (`px0 <pr-url>`), inspect scoped merge-base diffs, draft inline review comments, and stage, commit, or push from the browser.
 - AI coding harness integration: Dispatch edits directly to Claude Code, Gemini CLI, Cursor Agent, Antigravity, OpenCode, Codex, Aider, or Goose with live reloading.
+- Integrated terminal: Run your harness interactively, or a shell, in a pane under the code (``Ctrl+` ``). With a harness session open, `Alt+E` sends the selected lines to it (Linux and macOS, local only).
 - Fast navigation: Fuzzy file search, symbol outline, and workspace regex search in milliseconds.
 - Remote-first: Run on any remote server, VM, or container and browse locally without SSH key setups or remote daemons.
 - Virtual rendering: Opens 400,000-line files smoothly by mounting only visible rows; frees memory back to the OS after 15 seconds of inactivity.

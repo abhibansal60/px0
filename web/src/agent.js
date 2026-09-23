@@ -5,6 +5,7 @@ import { setStatusNote } from './status.js';
 import { openFile, reloadOpenTabs } from './tabs.js';
 import { refreshTree, treeEl } from './tree.js';
 import { setAgentHandler, hideSelectionBar } from './selbar.js';
+import { refreshTerminalHarness } from './terminal.js';
 import { render } from './renderer.js';
 import { syncDiffAgentTargets } from './diff.js';
 
@@ -60,6 +61,7 @@ export function applyAgentMeta() {
   }
   syncBatchMeta();
   syncGitPanelMeta();
+  refreshTerminalHarness();
 }
 
 function updateSessionMeta(session) {

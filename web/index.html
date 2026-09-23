@@ -325,6 +325,21 @@
     <!-- Metrics menu, opened from CPU/RAM status bar -->
     <div id="metrics-menu" role="menu" hidden></div>
 
+    <!-- Terminal pane: Shell and Harness Sessions hosted by px0 (web/src/terminal.js), toggled with Ctrl+` -->
+    <div id="term-resizer" hidden title="Drag to resize the terminal"></div>
+    <section id="termpane" hidden aria-label="Terminal">
+      <header class="term-head">
+        <div id="term-tabs" class="term-tabs" role="tablist"></div>
+        <button id="term-new-harness" class="term-btn" type="button" title="Start the selected coding harness interactively">+ Harness</button>
+        <button id="term-new-shell" class="term-btn" type="button" title="Start a shell in the workspace">+ Shell</button>
+        <span class="grow"></span>
+        <button id="term-hide" class="term-btn term-icon" type="button" title="Hide terminal ({Ctrl+`})" aria-label="Hide terminal">&times;</button>
+      </header>
+      <div id="term-body" class="term-body">
+        <div id="term-note" class="term-note" hidden></div>
+      </div>
+    </section>
+
     <!-- Bottom Status Bar -->
     <footer id="status">
       <!-- Selection actions: replace the buttons and size below while code is selected -->
@@ -340,6 +355,7 @@
         <button class="footer-btn" data-action="find" title="Find in File ({Mod+F})"><span class="footer-btn-label">Find in File</span><kbd class="footer-kbd" data-keys="Mod+F"></kbd></button>
         <button class="footer-btn" data-action="goto" title="Go to Line ({Mod+G})"><span class="footer-btn-label">Go to</span><kbd class="footer-kbd" data-keys="Mod+G"></kbd></button>
         <button class="footer-btn" data-action="md-preview" title="Toggle Markdown Preview ({Alt+M})" hidden><span class="footer-btn-label">Preview</span><kbd class="footer-kbd" data-keys="Alt+M"></kbd></button>
+        <button class="footer-btn" data-action="terminal" title="Toggle Terminal ({Ctrl+`})" hidden><span class="footer-btn-label">Terminal</span><kbd class="footer-kbd" data-keys="Ctrl+`"></kbd></button>
         <button class="footer-btn" data-action="wrap" title="Toggle Word Wrap ({Alt+Z})"><span class="footer-btn-label">Wrap</span><kbd class="footer-kbd" data-keys="Alt+Z"></kbd></button>
         <button class="footer-btn" id="btn-vim-help" data-action="vim-help" title="Vim Keybindings" hidden><span class="footer-btn-label">Vim Keys</span><kbd class="footer-kbd">?</kbd></button>
         <button class="footer-btn" data-action="help" title="Keyboard Shortcuts ({?})"><span class="footer-btn-label">Help</span><kbd class="footer-kbd" data-keys="?"></kbd></button>

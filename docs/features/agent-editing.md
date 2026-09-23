@@ -52,6 +52,12 @@ By default, px0 selects fast and cost-effective models for each harness, but all
 
 ---
 
+## Interactive Harness Sessions
+
+The composer runs one headless harness invocation per instruction. To keep a conversation going across instructions, start the harness interactively in the [terminal pane](terminal.md) (``Ctrl+` ``, **+ claude**). While that session runs, `Alt+E` hands it the selection's reference instead of opening the composer.
+
+---
+
 ## Beyond Code: Commit Messages
 
 The same harness and model you pick here are also used by the sidebar git panel's **Commit with AI** button, which asks the harness to write a commit message for your staged changes instead of editing code — see [Git Awareness: Stage, Commit, Push, Pull](git-integration.md).
