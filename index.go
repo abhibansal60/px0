@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -46,6 +47,7 @@ type Index struct {
 	gitFiles     []string
 	gitStatusMap map[string]string
 	gitStagedMap map[string]bool
+	gitStamps    map[string]string // size and mtime of each path in gitStatusMap; see worktreeStamps
 	diffBase     string
 	readyCh      chan struct{}
 }
@@ -225,6 +227,7 @@ func (ix *Index) Build() {
 	base := ix.DiffBase()
 	gs := gitStatusAgainst(ix.root, base)
 	staged := gitStagedPaths(ix.root)
+	stamps := worktreeStamps(ix.root, gs)
 	dirtyDirs := map[string]bool{}
 	var gitFiles []string
 	if gs != nil {
@@ -345,6 +348,7 @@ func (ix *Index) Build() {
 	ix.gitFiles = gitFiles
 	ix.gitStatusMap = gs
 	ix.gitStagedMap = staged
+	ix.gitStamps = stamps
 	ix.files, ix.children = files, children
 	ix.builtAt, ix.buildMS = time.Now(), time.Since(start).Milliseconds()
 	select {
@@ -355,14 +359,32 @@ func (ix *Index) Build() {
 	ix.mu.Unlock()
 }
 
+// worktreeStamps records the size and mtime of every path git lists as changed.
+// Status alone misses the common case of editing a file that is already
+// modified: it reads "M" before and after, so the edit would go unseen. Files git
+// lists as clean are left out, and those still surface through status.
+func worktreeStamps(root string, gs map[string]string) map[string]string {
+	st := make(map[string]string, len(gs))
+	for rel := range gs {
+		if fi, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel))); err == nil {
+			st[rel] = strconv.FormatInt(fi.Size(), 10) + " " + strconv.FormatInt(fi.ModTime().UnixNano(), 10)
+		}
+	}
+	return st
+}
+
 // UpdateGitStatus re-runs git status, updates in-memory status codes, staged
 // flags, and dirty directory markers across ix.children without re-walking
 // the filesystem tree. Reports gitChanges count, gitFiles list, whether
-// anything changed (status or staged), and the raw status/staged/dirty-dir
+// anything changed (status, staged, or content), and the raw status/staged/dirty-dir
 // maps.
-func (ix *Index) UpdateGitStatus() (count int, files []string, changed bool, statuses map[string]string, dirtyDirs map[string]bool, staged map[string]bool) {
+//
+// touched lists the paths whose content moved since the last call even though
+// their status code may read the same: a second edit to a file that is already
+// modified or untracked changes only its size and mtime.
+func (ix *Index) UpdateGitStatus() (count int, files []string, changed bool, statuses map[string]string, dirtyDirs map[string]bool, staged map[string]bool, touched []string) {
 	if !ix.Ready() || gitDisabled || !gitAvailable(ix.root) {
-		return 0, nil, false, nil, nil, nil
+		return 0, nil, false, nil, nil, nil, nil
 	}
 
 	base := ix.DiffBase()
@@ -374,6 +396,7 @@ func (ix *Index) UpdateGitStatus() (count int, files []string, changed bool, sta
 	if sg == nil {
 		sg = map[string]bool{}
 	}
+	stamps := worktreeStamps(ix.root, gs)
 
 	newDirtyDirs := map[string]bool{}
 	var newGitFiles []string
@@ -395,8 +418,16 @@ func (ix *Index) UpdateGitStatus() (count int, files []string, changed bool, sta
 	ix.mu.Lock()
 	defer ix.mu.Unlock()
 
+	for p, st := range stamps {
+		if ix.gitStamps[p] != st {
+			touched = append(touched, p)
+		}
+	}
+	sort.Strings(touched)
+	ix.gitStamps = stamps
+
 	// Check if status and staged maps are both unchanged
-	same := len(gs) == len(ix.gitStatusMap) && len(sg) == len(ix.gitStagedMap)
+	same := len(touched) == 0 && len(gs) == len(ix.gitStatusMap) && len(sg) == len(ix.gitStagedMap)
 	if same {
 		for k, v := range gs {
 			if ix.gitStatusMap[k] != v {
@@ -416,7 +447,7 @@ func (ix *Index) UpdateGitStatus() (count int, files []string, changed bool, sta
 	if same {
 		resFiles := make([]string, len(ix.gitFiles))
 		copy(resFiles, ix.gitFiles)
-		return ix.gitChanges, resFiles, false, gs, newDirtyDirs, sg
+		return ix.gitChanges, resFiles, false, gs, newDirtyDirs, sg, nil
 	}
 
 	// Update nodes in-place across ix.children
@@ -438,5 +469,5 @@ func (ix *Index) UpdateGitStatus() (count int, files []string, changed bool, sta
 
 	resFiles := make([]string, len(ix.gitFiles))
 	copy(resFiles, ix.gitFiles)
-	return ix.gitChanges, resFiles, true, gs, newDirtyDirs, sg
+	return ix.gitChanges, resFiles, true, gs, newDirtyDirs, sg, touched
 }

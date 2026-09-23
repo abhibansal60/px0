@@ -19,6 +19,7 @@ type GitStatusPayload struct {
 	Statuses      map[string]string `json:"statuses"`
 	DirtyDirs     map[string]bool   `json:"dirtyDirs,omitempty"`
 	Staged        map[string]bool   `json:"staged,omitempty"`
+	Touched       []string          `json:"touched,omitempty"` // content changed since the last check, whatever the status code
 	Branch        string            `json:"branch,omitempty"`
 	RecentCommits []GitCommit       `json:"recentCommits,omitempty"`
 	CommitsURL    string            `json:"commitsUrl,omitempty"`
@@ -182,7 +183,7 @@ func (gw *GitWatcher) loop(ctx context.Context, gitdir string) {
 // Refresh runs an immediate UpdateGitStatus, broadcasts to subscribers if changed,
 // and returns the latest git status payload.
 func (gw *GitWatcher) Refresh() GitStatusPayload {
-	count, files, changed, statuses, dirtyDirs, staged := gw.ix.UpdateGitStatus()
+	count, files, changed, statuses, dirtyDirs, staged, touched := gw.ix.UpdateGitStatus()
 	var recentCommits []GitCommit
 	var ahead, behind int
 	if gitAvailable(gw.root) {
@@ -210,6 +211,7 @@ func (gw *GitWatcher) Refresh() GitStatusPayload {
 		Statuses:      statuses,
 		DirtyDirs:     dirtyDirs,
 		Staged:        staged,
+		Touched:       touched,
 		Branch:        branch,
 		RecentCommits: recentCommits,
 		CommitsURL:    gitCommitsWebURL(gw.root, branch),
