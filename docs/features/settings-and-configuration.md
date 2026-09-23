@@ -53,6 +53,7 @@ px0 stores all configuration in a single per-user global file (`~/.px0/settings.
 | `lsp.hover.enabled` | LSP | `true` | `true`, `false` | Hover documentation cards |
 | `agent.harness` | Coding Agent | `""` | `claude`, `gemini`, `agy`, etc. | Preferred CLI coding harness |
 | `agent.timeoutSeconds` | Coding Agent | `120` | `10` – `600` (seconds) | Max runtime for agent edits |
+| `terminal.enabled` | Terminal | `true` | `true`, `false` | Offer the integrated terminal pane (loopback only; takes effect on the next start). Overridden by the `-no-terminal` CLI flag. |
 | `github.token` | GitHub | `""` | any string | Personal access token for `px0 pr` review; takes precedence over `GITHUB_TOKEN` and `gh auth token`. Masked in the Settings UI. |
 | `server.basePath` | Server | `"/"` | any path prefix (e.g. `"/rev-123/"`) | Base URL path prefix to serve endpoints and assets from. Overridden by the `-base-path` CLI flag. |
 

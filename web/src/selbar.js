@@ -23,6 +23,12 @@ export const SEL_KEYS = { KeyC: 'copy-ref', KeyA: 'copy-agent', KeyU: 'usages', 
 let agentHandler = null;
 export function setAgentHandler(fn) { agentHandler = fn; }
 
+/* terminal.js registers here too: with a Harness Session running, Alt+E hands
+   the selection's Reference to it instead of opening the inline composer. The
+   handler returns false when there is no session to take it. */
+let handoffHandler = null;
+export function setHandoffHandler(fn) { handoffHandler = fn; }
+
 /* Same one-way registration for PR review comments (pr.js), active only in a
    `px0 pr ...` session. */
 let reviewHandler = null;
@@ -117,7 +123,7 @@ function diffSelection(range, d) {
   return { text, l1, l2, delL1, delL2, path: d.path, fromDiff: true, side };
 }
 
-const selectionRef = ({ path, l1, l2 }) => path + ':' + (l1 === l2 ? l1 : l1 + '-' + l2);
+export const selectionRef = ({ path, l1, l2 }) => path + ':' + (l1 === l2 ? l1 : l1 + '-' + l2);
 
 function showSelectionBar(info) {
   current = info;
@@ -187,10 +193,13 @@ export function runSelectionAction(act) {
   if (!current) {
     if (act === 'agent-edit') {
       const d = doc_();
-      if (d && agentHandler) {
+      if (d && (agentHandler || handoffHandler)) {
         const line = d.cur || 1;
         const text = (d.lines && d.lines[line - 1]) || '';
-        agentHandler({ text, l1: line, l2: line, path: d.path });
+        const at = { text, l1: line, l2: line, path: d.path };
+        if (handoffHandler?.(at)) return true;
+        if (!agentHandler) return false;
+        agentHandler(at);
         return true;
       }
     }
@@ -206,6 +215,7 @@ export function runSelectionAction(act) {
     const snippet = '@' + path + ' ' + lineStr + '\n```' + ext + '\n' + text + '\n```';
     copyToClipboard(snippet, 'Copied');
   } else if (act === 'agent-edit') {
+    if (handoffHandler?.(current)) return true;
     if (!agentHandler) return false;
     agentHandler(current);
   } else if (act === 'review-comment') {

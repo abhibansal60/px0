@@ -43,6 +43,7 @@ func main() {
 		noTelemetry  = flag.Bool("no-telemetry", false, "disable anonymous usage telemetry")
 		agentCmd     = flag.String("agent", "", "pin the coding harness used for edits (claude, gemini, cursor-agent, agy, opencode, codex, aider, goose, or a command template containing {prompt}); detected and chosen in the UI when omitted")
 		noAgent      = flag.Bool("no-agent", false, "do not offer editing through a coding harness")
+		noTerminal   = flag.Bool("no-terminal", false, "do not offer the integrated terminal")
 		yesFlag      = flag.Bool("y", false, "answer yes to prompts (e.g. open already merged PRs)")
 		yesFlagLong  = flag.Bool("yes", false, "answer yes to prompts (alias for -y)")
 		basePathFlag = flag.String("base-path", "", "base URL path prefix to serve endpoints and assets from (e.g. /rev-123/)")
@@ -189,9 +190,33 @@ func main() {
 		pxSrv.SetAgent(agent)
 	}
 
+	// The terminal runs shells as this user, so it is only offered to this
+	// machine: when px0 listens beyond loopback it stays off, with the reason
+	// shown in the pane.
+	var term *termManager
+	if cfg := readSettings(); !*noTerminal && (cfg.TerminalEnabled == nil || *cfg.TerminalEnabled) {
+		off := ""
+		if !isLoopbackHost(addr) {
+			off = fmt.Sprintf("px0 is listening on %s, beyond this machine; the terminal only runs when px0 is bound to loopback (the default -host)", addr)
+		}
+		_, port, _ := net.SplitHostPort(addr)
+		term = newTermManager(root, port, configuredBasePath, off)
+		term.harness = agent.SessionCommand
+		term.logf = func(role, msg, detail string) { uiStatus(role, msg, detail, 0, os.Stdout) }
+		pxSrv.SetTerminal(term)
+	}
+
 	srv := &http.Server{Handler: pxSrv}
 
 	url := viewerURL(addr, initialFile, initialLine, configuredBasePath)
+	if tok := term.Token(); tok != "" {
+		// The page exchanges it for a cookie and drops it from the address bar.
+		sep := "?"
+		if strings.Contains(url, "?") {
+			sep = "&"
+		}
+		url += sep + "t=" + tok
+	}
 	uiHeading("px0 "+version, nil, os.Stdout)
 	if pr != nil {
 		prTitle := fmt.Sprintf("#%d %s", pr.meta.Number, pr.meta.Title)
@@ -267,6 +292,7 @@ func main() {
 	}()
 
 	err = srv.Serve(ln)
+	term.Close() // before pr.Close removes the checkout its sessions run in
 	lsp.Close()
 	agent.Close()
 	pr.Close()

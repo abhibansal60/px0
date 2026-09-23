@@ -16,6 +16,7 @@ import { togglePreview } from './markdown.js';
 import { openSettings } from './settings.js';
 import { showVimHelp, isVimEnabled, setVimModeEnabled } from './vim.js';
 import { launchPR } from './pr.js';
+import { toggleTerminal, newHarnessSession, newShellSession } from './terminal.js';
 
 export const overlay = $('#overlay');
 export const palInput = $('#pal');
@@ -34,6 +35,9 @@ export const COMMANDS = [
   { name: 'Find All References (Right Panel)', run: () => findReferences() },
   { name: withKeys('Show Call Trail: Callers / Callees ({Alt+Shift+H})'), run: () => showCalls() },
   { name: 'Set Up Language Server…', run: () => openLspSetup() },
+  { name: withKeys('Terminal: Toggle ({Ctrl+`})'), run: () => toggleTerminal() },
+  { name: 'Terminal: New Harness Session', run: () => newHarnessSession() },
+  { name: 'Terminal: New Shell', run: () => newShellSession() },
   { name: 'Toggle Right Inspector (Symbols & References)', run: () => {
     if (document.body.classList.contains('right-hidden')) showRightInspector('refs');
     else hideRightInspector();

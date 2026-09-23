@@ -61,6 +61,7 @@ type Server struct {
 	ix        *Index
 	lsp       *lspManager
 	agent     *agentManager // nil unless main wires editing for this session
+	term      *termManager  // nil when the terminal is turned off (-no-terminal, terminal.enabled)
 	pr        *prSession    // nil unless main launched this process as `px0 pr ...`
 	diffBase  string        // ref /api/diff and /api/gutter diff against; "HEAD" unless in PR mode
 	prHeadSHA string        // PR mode only: the checked-out PR head commit. Frozen boundary between
@@ -171,6 +172,12 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc(s.routePath("/api/pr/comments/issue"), s.handlePRIssueCommentPost)
 	s.mux.HandleFunc(s.routePath("/api/pr/comments/review-reply"), s.handlePRReviewCommentReply)
 	s.mux.HandleFunc(s.routePath("/api/session"), s.handleSession)
+	// Closures, not method values: s.term is set after the routes are registered.
+	s.mux.HandleFunc(s.routePath("/api/term/stream"), func(w http.ResponseWriter, r *http.Request) { s.term.handleStream(w, r) })
+	s.mux.HandleFunc(s.routePath("/api/term/open"), func(w http.ResponseWriter, r *http.Request) { s.term.handleOpen(w, r) })
+	s.mux.HandleFunc(s.routePath("/api/term/input"), func(w http.ResponseWriter, r *http.Request) { s.term.handleInput(w, r) })
+	s.mux.HandleFunc(s.routePath("/api/term/resize"), func(w http.ResponseWriter, r *http.Request) { s.term.handleResize(w, r) })
+	s.mux.HandleFunc(s.routePath("/api/term/close"), func(w http.ResponseWriter, r *http.Request) { s.term.handleClose(w, r) })
 }
 
 func NewServer(ix *Index, lsp *lspManager, basePaths ...string) *Server {
@@ -390,6 +397,15 @@ func (s *Server) SetAgent(a *agentManager) {
 	}
 }
 
+// SetTerminal wires the terminal pane's sessions. Output that goes quiet, and
+// sessions that exit, prompt a git status check so their edits reach open tabs.
+func (s *Server) SetTerminal(t *termManager) {
+	s.term = t
+	if t != nil && s.gitWatcher != nil {
+		t.onQuiet = s.gitWatcher.Trigger
+	}
+}
+
 // SetPR marks this process as a PR review session: diffs are computed
 // against the PR's merge-base instead of HEAD, and the /api/pr/* endpoints
 // become live. Unset (nil) for a normal workspace.
@@ -432,6 +448,9 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != expected && r.URL.Path != strings.TrimSuffix(expected, "/") {
 		http.NotFound(w, r)
 		return
+	}
+	if s.term.Adopt(w, r) {
+		return // exchanged the URL's terminal token for a cookie; redirected without it
 	}
 	b, err := fs.ReadFile(assets, "web/index.html")
 	if err != nil {
@@ -498,6 +517,7 @@ func (s *Server) handleMeta(w http.ResponseWriter, r *http.Request) {
 		"agentModel":  s.agent.Model(),
 		"agentPinned": s.agent.Pinned(),
 		"agents":      []agentHarness{},
+		"terminal":    s.term.Meta(r),
 	}
 	if s.pr != nil {
 		p := s.pr

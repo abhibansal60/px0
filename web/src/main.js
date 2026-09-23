@@ -26,6 +26,7 @@ import { initGitStream } from './gitstream.js';
 import { initGitPanel } from './gitpanel.js';
 import { initPR } from './pr.js';
 import { initLineComment } from './linecomment.js';
+import { initTerminal, applyTerminalMeta } from './terminal.js';
 
 // Initialize all subsystems
 initRenderer();
@@ -52,6 +53,7 @@ initSettings();
 initVim();
 initImageViewer();
 initLineComment();
+initTerminal();
 
 // Bootstrap application lifecycle
 (async function boot() {
@@ -81,6 +83,7 @@ initLineComment();
   if (S.meta.metrics) updateMetricsDisplay(S.meta.metrics);
   updateSidebarToggleState();
   applyAgentMeta();
+  applyTerminalMeta();
   initPR();
   document.title = S.meta.name + ' - px0';
   $('#root-name').textContent = S.meta.name;

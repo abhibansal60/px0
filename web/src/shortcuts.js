@@ -22,6 +22,7 @@ import { handleVimKeyDown, isVimEnabled, getVimMode, showVimHelp, closeVimHelp }
 import { handleImageKey } from './imageview.js';
 import { submitBatch } from './agent.js';
 import { reindexWorkspace } from './panels.js';
+import { toggleTerminal } from './terminal.js';
 
 /* Each entry lists alternative combos, written as for keyLabel in state.js so
    they show as ⌘/⌥/⇧ on a Mac and Ctrl/Alt/Shift elsewhere. Browsers keep
@@ -42,7 +43,8 @@ export const SHORTCUTS = [
   [['Alt+1…9'], 'Select tab'], [['Double click'], 'Highlight all occurrences'],
   [['Mod+A'], 'Select whole file'],
   [['Alt+C', 'Alt+A'], 'Copy selection ref / with context'], [['Alt+U'], 'Find usages of selection'],
-  [['Alt+E'], 'Edit selection inline'],
+  [['Alt+E'], 'Edit selection inline, or send it to a harness session'],
+  [['Ctrl+`'], 'Toggle terminal'],
   [['Right click'], 'Selection actions at the pointer'],
   [['Mod+Home|Mod+Up', 'Mod+End|Mod+Down'], 'Top / bottom of file'],
   [['Home|Mod+Left', 'End|Mod+Right'], 'Start / end of line'],
@@ -91,10 +93,16 @@ export function initShortcuts() {
     else if (act === 'settings') openSettings('ui');
     else if (act === 'vim-help') showVimHelp();
     else if (act === 'help') showHelp();
+    else if (act === 'terminal') toggleTerminal();
   });
 
   addEventListener('keydown', e => {
     const mod = e[MOD];
+
+    // Keys typed into the terminal belong to the program running there
+    // (Ctrl+W, Ctrl+D, Escape...). terminal.js handles Ctrl+` itself. Only Cmd
+    // shortcuts on a Mac, which a terminal never uses, still reach px0.
+    if (e.target?.closest?.('#termpane') && !(isMac && e.metaKey)) return;
 
     if (e.key === 'Escape') {
       const lb = $('#img-lightbox');

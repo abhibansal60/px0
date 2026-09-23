@@ -44,6 +44,11 @@ type agentPreset struct {
 	ModelFlag    string
 	DefaultModel string
 	Models       []string
+	// SessionArgs runs the harness interactively in a terminal Harness Session;
+	// empty means the bare binary. SessionModelEnv names an environment variable
+	// that carries the model there instead of ModelFlag.
+	SessionArgs     []string
+	SessionModelEnv string
 }
 
 var agentPresets = []agentPreset{
@@ -133,6 +138,7 @@ var agentPresets = []agentPreset{
 	{
 		Name:         "aider",
 		Args:         []string{"aider", "--yes-always", "--no-auto-commits", "--message", "{prompt}"},
+		SessionArgs:  []string{"aider", "--no-auto-commits"},
 		ModelFlag:    "--model",
 		DefaultModel: "claude-3-7-sonnet",
 		Models: []string{
@@ -148,10 +154,12 @@ var agentPresets = []agentPreset{
 		},
 	},
 	{
-		Name:         "goose",
-		Args:         []string{"goose", "run", "--no-session", "-t", "{prompt}"},
-		ModelFlag:    "--model",
-		DefaultModel: "gpt-4o",
+		Name:            "goose",
+		Args:            []string{"goose", "run", "--no-session", "-t", "{prompt}"},
+		SessionArgs:     []string{"goose", "session"},
+		SessionModelEnv: "GOOSE_MODEL",
+		ModelFlag:       "--model",
+		DefaultModel:    "gpt-4o",
 		Models: []string{
 			"gpt-4o",
 			"gpt-4o-mini",
@@ -619,6 +627,52 @@ func (m *agentManager) Pinned() bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.pinned
+}
+
+// SessionCommand is the argv, plus any environment, that runs the selected
+// harness interactively for a Harness Session in the terminal. It is the
+// harness's plain interactive form, without the flags Headless Dispatch needs
+// to apply edits unattended: in a session a person is there to approve them.
+func (m *agentManager) SessionCommand() (title string, argv, env []string, err error) {
+	if m == nil {
+		return "", nil, nil, errors.New("editing through a coding harness is turned off (-no-agent)")
+	}
+	m.mu.Lock()
+	name, model := m.selected, m.models[m.selected]
+	m.mu.Unlock()
+	if name == "" {
+		return "", nil, nil, errors.New("pick a coding harness first")
+	}
+	for _, p := range agentPresets {
+		if p.Name != name {
+			continue
+		}
+		if model == "" {
+			model = p.DefaultModel
+		}
+		argv = append([]string(nil), p.SessionArgs...)
+		if len(argv) == 0 {
+			argv = []string{p.Args[0]}
+		}
+		switch {
+		case model == "":
+		case p.SessionModelEnv != "":
+			env = []string{p.SessionModelEnv + "=" + model}
+		case p.ModelFlag != "":
+			argv = append(argv, p.ModelFlag, model)
+		}
+		bin, ok := lookPathIn(argv[0], lspBinDirs())
+		if !ok {
+			return "", nil, nil, fmt.Errorf("%s is not installed", argv[0])
+		}
+		argv[0] = bin
+		title = name
+		if model != "" {
+			title += " (" + model + ")"
+		}
+		return title, argv, env, nil
+	}
+	return "", nil, nil, fmt.Errorf("%s is a custom -agent command, which has no interactive form; start a shell instead", name)
 }
 
 // Select remembers a harness for this workspace and every later run. Passing an

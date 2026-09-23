@@ -32,6 +32,7 @@ type settings struct {
 	GitHubToken                 *string  `json:"github.token,omitempty"`
 	GitCommitMessageInstruction *string  `json:"git.commitMessageInstruction,omitempty"`
 	ServerBasePath              *string  `json:"server.basePath,omitempty"`
+	TerminalEnabled             *bool    `json:"terminal.enabled,omitempty"`
 }
 
 var settingsMu sync.Mutex
@@ -348,6 +349,14 @@ var settingsSchema = []settingSchemaItem{
 		Type:        "string",
 		Default:     "",
 		Secret:      true,
+	},
+	{
+		Key:         "terminal.enabled",
+		Title:       "Integrated Terminal",
+		Description: "Offers a terminal pane (Ctrl+`) for shells and interactive harness sessions in the workspace. Only available when px0 is bound to this machine (the default -host). Takes effect on the next start; -no-terminal turns it off for one run.",
+		Category:    "Terminal",
+		Type:        "boolean",
+		Default:     true,
 	},
 	{
 		Key:         "server.basePath",

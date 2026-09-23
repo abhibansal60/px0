@@ -1,0 +1,3 @@
+xterm.js 6.0.0 (@xterm/xterm) and @xterm/addon-fit 0.11.0, copied unmodified from their npm
+packages except for the trailing sourceMappingURL comment. Loaded only when the
+terminal pane first opens (web/src/terminal.js); not part of the app.js bundle.

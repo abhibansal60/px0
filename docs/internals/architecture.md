@@ -9,7 +9,7 @@ px0 is engineered as an ultra-fast, zero-overhead code exploration console. Its 
 1. Edits Are Delegated: px0 navigates, searches, and inspects code, and does not author changes itself. There are no save buttons and no endpoint accepts file content. Changes are made by a coding harness px0 dispatches on request, one per non-overlapping line range so several can run at once (see [Harness Editing & Agent Dispatch](agent-editing.md)).
 1. Single Static Binary Footprint: All frontend assets (HTML, CSS, JavaScript, icons, themes) are embedded directly into the Go binary at compile time via `go:embed`. px0 requires no Node.js, Python, or Ruby runtime, no external database, and no CGO dependencies.
 1. Sub-Millisecond Responsiveness: The HTTP listener binds, serves the web UI, and opens the default browser in under 1 millisecond. Heavy operations (full directory indexing, git status checks, language server binary discovery) run asynchronously off the critical path.
-1. Stateless in the Workspace: px0 never writes configuration directories, temporary caches, or metadata files (e.g., `.px0/` or `.cache/`) into a workspace. Indexes and caches live in volatile memory. Outside the workspace it keeps only the remembered harness choice and update/telemetry state under `~/.px0/` (or `$XDG_CONFIG_HOME/px0/`).
+1. Stateless in the Workspace: px0 never writes configuration directories, temporary caches, or metadata files (e.g., `.px0/` or `.cache/`) into a workspace. Indexes, caches and terminal sessions live in volatile memory. Outside the workspace it keeps only the remembered harness choice and update/telemetry state under `~/.px0/` (or `$XDG_CONFIG_HOME/px0/`).
 1. Strict Memory Reclamation: Long-lived background processes should not hold idle RAM. When the user finishes a burst of queries, unused pages are proactively returned to the operating system.
 
 ## 2. Startup Pipeline (<1 ms Critical Path)
@@ -94,6 +94,11 @@ When hosted behind reverse proxies or multi-tenant review platforms, px0 support
 | `/api/agent/edit`     | `POST` | Dispatch an instruction to the harness (`?path=...&l1=...&l2=...&instruction=...`) | JSON job snapshot               |
 | `/api/agent/job`      | `GET`  | Snapshot of job `?id=...`, or the most recently started when omitted: output, changed files | JSON job snapshot          |
 | `/api/agent/cancel`   | `POST` | Stop every running harness                                              | JSON (`{cancelled}`)                       |
+| `/api/term/stream`    | `GET`  | One SSE stream for every terminal session: session lists and output frames with resume cursors ([Terminal](terminal.md)) | `text/event-stream` |
+| `/api/term/open`      | `POST` | Start a Shell or Harness Session in a pseudo-terminal (`{kind, rows, cols}`) | JSON (`{id, title, kind}`)          |
+| `/api/term/input`     | `POST` | Keystrokes the user typed into a session (`{id, data}`)                 | JSON (`{ok}`)                              |
+| `/api/term/resize`    | `POST` | Resize a session's terminal (`{id, rows, cols}`)                        | JSON (`{ok}`)                              |
+| `/api/term/close`     | `POST` | Hang up a session and reap its process group (`{id}`)                   | JSON (`{ok}`)                              |
 
 ## 4. Memory Management & Proactive Scavenging
 
@@ -168,6 +173,10 @@ The `/api/lsp/install` and `/api/lsp/start` endpoints execute shell commands (e.
 1. The request `Origin` header must match the request `Host` header.
 1. The `Host` header is validated to ensure it is strictly an IP address (`127.0.0.1`, `[::1]`) or `localhost`. This prevents DNS-rebinding attacks.
 1. The executed command is never supplied by the client; it is looked up exclusively from the hard-coded internal `lspRegistry`, or, for agent edits, from the harness the user picked (only the instruction text comes from the client).
+
+### Terminal Access
+
+The integrated terminal runs programs as the user, so it adds two checks on top of the ones above ([Integrated Terminal §6](terminal.md#6-access-control)). First, it only exists when px0 listens on loopback, and every request's `Host` must be `localhost` or a loopback IP, not merely any IP address. Second, it needs a per-process 256-bit token: px0 adds it to the URL it opens and prints, the page exchanges it for an `HttpOnly; SameSite=Strict` cookie, and the token is removed from the address bar. The token keeps out other local processes and users, which can forge an `Origin` header.
 
 ### Self-Update Integrity
 
